@@ -1,141 +1,67 @@
 <script setup lang="ts">
-import { useIntervalFn, useUserMedia } from '@vueuse/core';
-import { onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
-import { useImageStore } from '../store/imageStore';
+import { useIntervalFn } from '@vueuse/core';
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useWebsocket } from '../composables/useWebsocket.ts'
 
-// Add debug logs
-console.log('Script starting')
+const { notifyRetakeCapture, notifyStartTransform, isConnected } = useWebsocket()
 
-const capturedImageBlob = ref<Blob | null>(null)
-const isUploaded = ref(false)
-const imageStore = useImageStore()
+const router = useRouter()
+const count = ref(6)
+const isCountdownComplete = ref(false)
 
-function snapshotImage(
-  src: CanvasImageSource,
-  size: { width: number; height: number }
-) {
-  const canvas = new OffscreenCanvas(size.width, size.height);
-  const context = canvas.getContext("2d")!;
-  context.translate(size.width, 0);
-  context.scale(-1, 1);
-  context.drawImage(src, 0, 0);
-  return canvas;
-}
-
-const camera = useUserMedia({
-  constraints: {
-    video: {
-      width: { ideal: 256, max: 1024 },
-      height: { ideal: 256, max: 1024 },
-      facingMode: 'user', // This specifies front camera
-      // Add iOS specific constraints
-      aspectRatio: 1,
-      frameRate: { max: 30 }
-    },
-    audio: false, // Explicitly disable audio
-  },
-})
-
-const video = ref<HTMLVideoElement | null>(null)
-
-watchEffect(() => {
-  console.log('watchEffect triggered', video.value, camera.stream.value)
-  if(video.value && camera.stream.value) {
-    video.value.srcObject = camera.stream.value;
-    console.log('Stream set to video')
-  }
-})
-
-const count = ref(4)
 const countdown = useIntervalFn(() => {
   console.log('Countdown:', count.value)
   if (count.value === 0) {
+    isCountdownComplete.value = true;
     return countdown.pause()
   }
   count.value--
 }, 1000)
 
-async function onRetakeClick() {
-  isUploaded.value=false
-  console.log('Retake clicked')
-  const _video = video.value;
-  if (_video && _video.paused) {
-    count.value = 4;
-    await _video.play();
-    countdown.resume();
-  }
-}
-
-// Initialize camera
-const initCamera = async () => {
-  console.log('Initializing camera')
+const onRetakeClick = async () => {
   try {
-    await camera.start();
-    console.log('Camera started successfully')
+    const success = await notifyRetakeCapture()
+    console.log('📸 Retake button clicked, WebSocket connected:', isConnected.value)
+    if (success) {
+      count.value = 6
+      isCountdownComplete.value = false
+      countdown.resume()
+    }
   } catch (error) {
-    console.error('Camera start error:', error)
+    console.error('❌ Error starting capture:', error)
   }
 }
 
-onMounted(async () => {
+const onContinueClick = async () => {
+  try {
+    const success = await notifyStartTransform()
+    console.log('🔁 Continue button clicked, WebSocket connected:', isConnected.value)
+    if (success) {
+      router.push('/transform')
+    } else {
+      console.error('❌ Error starting transform')
+    }
+  } catch (error) {
+    console.error('❌ Error starting transform:', error)
+  }
+}
+
+
+onMounted(() => {
   console.log('Component mounted')
-  await initCamera();
   countdown.resume();
 })
-
-onUnmounted(() => {
-  console.log('Component unmounting')
-  const _video = video.value;
-  if (_video && !_video.paused) {
-    _video.pause();
-    _video.srcObject = null;
-  }
-  camera.stop();
-})
-
-watch(countdown.isActive, async (isPending) => {
-  console.log('Countdown watch triggered', isPending)
-  if (isPending) return;
-  
-  const _video = video.value;
-  if (!_video) {
-    console.log('No video element found')
-    return;
-  }
-  
-  _video.pause();
-  
-  try {
-    const photo = snapshotImage(_video, {
-      width: _video.videoWidth,
-      height: _video.videoHeight,
-    });
-    
-    const mimeType = { type: "image/png" };
-    const blob = await photo.convertToBlob(mimeType);
-    _video.poster = URL.createObjectURL(blob);
-    
-    capturedImageBlob.value = blob;
-    console.log('Blob before store:', blob) 
-    imageStore.setTempImage(blob)
-    console.log('Store after setting:', imageStore.tempImage) 
-    isUploaded.value = true;
-    console.log('Photo captured and stored')
-  } catch (error) {
-    console.error('Photo capture error:', error)
-  }
-});
 </script>
 
 <template>
-  <div class="h-screen w-screen grid grid-rows-6 overflow-hidden m-0 p-0 absolute inset-0">
+  <div class="h-screen w-screen grid grid-rows-6 overflow-hidden m-0 p-0 absolute inset-0 bg-gradient-to-b from-blue-50 to-white">
     <div class="h-full">
       <transition name="slide-bottom">
         <button
-          v-show="isUploaded"
+          v-show="isCountdownComplete"
           @click="onRetakeClick"
           class="bg-green-600 text-white text-3xl absolute left-0 mt-14 px-8 py-8 flex items-center rounded-r-full"
-
         >
           Retake
         </button>
@@ -143,27 +69,28 @@ watch(countdown.isActive, async (isPending) => {
     </div>
 
     <div class="row-span-4 flex items-center justify-center">
-      <video
-        ref="video"
-        class="h-[80vw] w-[80vw] sm:h-[60vw] sm:w-[60vw] object-cover -scale-x-100 rounded-2xl"
-        muted
-        autoplay
-        playsinline
-        webkit-playsinline
-      />
-      <span
-        v-if="countdown.isActive.value"
-        class="text-[15rem] sm:text-[20rem] text-white fixed"
+      <template v-if="!isCountdownComplete">
+        <span
+          v-if="countdown.isActive.value"
+          class="text-[15rem] sm:text-[20rem] text-green-500 fixed font-bold"
         >
-        {{ count }}
-      </span>
+          {{ count }}
+        </span>
+      </template>
+      <template v-else>
+        <img
+          src="/wesmile-logo.png"
+          alt="Robot Photobooth"
+          class="mx-auto w-[300px] h-[300px] object-contain"
+        >
+      </template>
     </div>
 
     <div class="h-full relative">
       <transition name="slide-top">
-        <div v-show="isUploaded" class="h-full">
+        <div v-show="isCountdownComplete" class="h-full">
           <button
-            @click="$router.push('/transform')"
+            @click="onContinueClick"
             class="bg-blue-700 text-white text-4xl absolute bottom-0 h-[90%] pt-8 px-12 right-0 flex items-center rounded-t-full"
           >
             Continue

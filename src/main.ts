@@ -6,8 +6,10 @@ import lottie from 'vue3-lottie'
 import './style.css'
 
 
+
 createApp(App)
   .use(createPinia())
   .use(router)
   .use(lottie)
   .mount('#app')
+
