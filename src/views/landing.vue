@@ -2,15 +2,20 @@
 import { useMounted } from '@vueuse/core'
 import { useWebsocket } from '../composables/useWebsocket.ts'
 import { useRouter } from 'vue-router'  // Add this
+import { onMounted } from 'vue';
 
-const router = useRouter()  // Add this
-const { isConnected, notifyStartCapture } = useWebsocket()
+const router = useRouter()  
+const { sendMessage } = useWebsocket()
 const isMounted = useMounted()
+
+onMounted(async () => {
+  //await sendMessage('DISPLAY_UPDATE', { display: 'idle' })
+})
+
 
 const handlePhotoClick = async () => {
   try {
-    const success = await notifyStartCapture()  // Wait for result
-    console.log('📸 Photo button clicked, WebSocket connected:', isConnected.value)
+    const success = await sendMessage('DISPLAY_UPDATE',{display: 'capture'})  // Wait for result
     if (success) {
       router.push('/capture')
     }

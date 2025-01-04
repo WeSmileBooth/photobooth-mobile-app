@@ -1,9 +1,11 @@
 <script setup>
 import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { useImageStore } from '../store/imageStore';
+import { useWebsocket } from '../composables/useWebsocket'
 
 // Get access to our image store
 const imageStore = useImageStore();
+const { sendMessage } = useWebsocket();
 
 const imageUrl = computed(() => {
   if (imageStore.tempImage) {
@@ -12,13 +14,22 @@ const imageUrl = computed(() => {
   return '/wesmile-logo.png'
 })
 
+// Compute URL for processed image
+const processedImageUrl = computed(() => {
+    return imageStore.transformedImageUrl || '/wesmile-logo.png';
+});
+
 onMounted(() => {
   // When the component mounts, we'll get the stored image and create a URL for it
-  const storedImage = imageStore.getTempImage;
+  const storedImage = imageStore.tempImage;
+  console.log('processedImageUrl', processedImageUrl.value);
   if (storedImage) {
     // Create a URL that we can use in our img elements
     imageUrl.value = URL.createObjectURL(storedImage);
   }
+  sendMessage('DISPLAY_UPDATE', { display: 'review' })
+});
+
   
   // Clean up the created URL when the component unmounts
   onUnmounted(() => {
@@ -26,7 +37,6 @@ onMounted(() => {
     window.URL.revokeObjectURL(imageUrl.value)
   }
 })
-});
 
 // Function to handle saving the image
 const handleSaveImage = () => {
@@ -49,7 +59,7 @@ const handleSaveImage = () => {
     <!-- Bottom image - reduced flex-1 to flex-none and added specific height -->
     <div class="flex-none h-[45vh] flex items-center justify-center">
       <img
-        :src="imageUrl"
+        :src="processedImageUrl"
         :alt="imageStore.tempImage ? 'Captured Photo' : 'WeSmile Logo Bottom'"
         class="max-h-full w-auto rounded-2xl shadow-lg object-contain"
       />

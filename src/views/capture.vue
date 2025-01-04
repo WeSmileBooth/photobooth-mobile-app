@@ -2,18 +2,17 @@
 import { useIntervalFn } from '@vueuse/core';
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useWebsocket } from '../composables/useWebsocket.ts'
+import { useWebsocket } from '../composables/useWebsocket'
+import { emitter } from '../composables/eventBus'
 
-const { notifyRetakeCapture, notifyStartTransform, isConnected } = useWebsocket()
-
+const { sendMessage } = useWebsocket()
 const router = useRouter()
 const count = ref(6)
 const isCountdownComplete = ref(false)
 
 const countdown = useIntervalFn(() => {
-  console.log('Countdown:', count.value)
   if (count.value === 0) {
-    isCountdownComplete.value = true;
+    //isCountdownComplete.value = true;
     return countdown.pause()
   }
   count.value--
@@ -21,8 +20,9 @@ const countdown = useIntervalFn(() => {
 
 const onRetakeClick = async () => {
   try {
-    const success = await notifyRetakeCapture()
-    console.log('📸 Retake button clicked, WebSocket connected:', isConnected.value)
+    const success = await sendMessage('RETAKE', {
+      display: 'retake'
+    })
     if (success) {
       count.value = 6
       isCountdownComplete.value = false
@@ -35,13 +35,10 @@ const onRetakeClick = async () => {
 
 const onContinueClick = async () => {
   try {
-    const success = await notifyStartTransform()
-    console.log('🔁 Continue button clicked, WebSocket connected:', isConnected.value)
-    if (success) {
-      router.push('/transform')
-    } else {
-      console.error('❌ Error starting transform')
-    }
+      await sendMessage('DISPLAY_UPDATE', {
+      display: 'transform'
+    })
+    router.push('/transform')
   } catch (error) {
     console.error('❌ Error starting transform:', error)
   }
@@ -49,7 +46,15 @@ const onContinueClick = async () => {
 
 
 onMounted(() => {
-  console.log('Component mounted')
+  emitter.on('ws-message', (data:any)=>{
+    if (data.type === 'COUNTER_UPDATE'){
+      console.log('update counter')
+      count.value = data.payload.count
+      console.log('complete', data.payload.isComplete);
+      
+      isCountdownComplete.value = data.payload.isComplete
+    }
+  })
   countdown.resume();
 })
 </script>

@@ -2,64 +2,45 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Vue3Lottie } from 'vue3-lottie'
-import {useWebsocket} from '../composables/useWebsocket'
+import { useWebsocket } from '../composables/useWebsocket'
+import { emitter } from '../composables/eventBus'
+import { useImageStore } from '../store/imageStore'
 
-// Constants
-const INITIAL_COUNTDOWN = 4
-const INTERVAL_DELAY = 1000
 
-// Component setup
+
 const router = useRouter()
-const { notifyShowReview, isConnected } = useWebsocket()
-const secondsRemaining = ref(INITIAL_COUNTDOWN)
-const isLoading = ref(true)
-const error = ref<string | null>(null)
+const { sendMessage } = useWebsocket()
+const timer = ref(60)
+const imageStore = useImageStore()
+let interval: any
 
-// Handle navigation to review page
-const navigateToReview = async () => {
-  try {
-    const success = await notifyShowReview()    
-    if (success) {
-      await router.push('/review')
-    } else {
-      throw new Error('Failed to show review')
-    }
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'An unexpected error occurred'
-    console.error('❌ Error showing review:', err)
-    isLoading.value = false
-  }
-}
-
-// Setup countdown timer
-let countdownInterval: NodeJS.Timer | null = null
-
-const startCountdown = () => {
-  countdownInterval = setInterval(() => {
-    if (secondsRemaining.value <= 0) {
-      if (countdownInterval) {
-        clearInterval(countdownInterval)
-      }
-      console.log('Image generation complete! Navigating to review page...')
-      navigateToReview()
-      return
-    }
-
-    console.log(`Image generating, ready in ${secondsRemaining.value} seconds...`)
-    secondsRemaining.value--
-  }, INTERVAL_DELAY)
-}
-
-// Lifecycle hooks
 onMounted(() => {
-  startCountdown()
+  emitter.on('ws-message', (data: any) => {
+    console.log('ws-message', data);
+    console.log('type', data.type.type);
+    
+    if (data.type == "GENERATION_COMPLETE") {
+      imageStore.setOriginalImageUrl(data.payload.originalImageUrl)
+      imageStore.setTransformedImageUrl(data.payload.transformedImageUrl)
+      console.log('originalImageUrl', imageStore.originalImageUrl);
+      console.log('transformedImageUrl', imageStore.transformedImageUrl);
+      router.push('/review')
+    }
+  })
+  
+  
+  
+  interval = setInterval(() => {
+       timer.value--
+       if (timer.value <= 0) {
+           clearInterval(interval)
+           sendMessage('DISPLAY_UPDATE', { display: 'review' })
+           router.push('/review')
+       }
+   }, 1000)
 })
 
-onUnmounted(() => {
-  if (countdownInterval) {
-    clearInterval(countdownInterval)
-  }
-})
+onUnmounted(() => clearInterval(interval))
 </script>
 
 <template>
