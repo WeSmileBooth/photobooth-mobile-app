@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core';
+import { useIntervalFn } from '@vueuse/core'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWebsocket } from '../composables/useWebsocket'
@@ -21,7 +21,7 @@ const countdown = useIntervalFn(() => {
 const onRetakeClick = async () => {
   try {
     const success = await sendMessage('RETAKE', {
-      display: 'retake'
+      display: 'retake',
     })
     if (success) {
       count.value = 6
@@ -35,32 +35,34 @@ const onRetakeClick = async () => {
 
 const onContinueClick = async () => {
   try {
-      await sendMessage('DISPLAY_UPDATE', {
-      display: 'transform'
+    await sendMessage('DISPLAY_UPDATE', {
+      display: 'quiz',
     })
-    router.push('/transform')
+    router.push('/quiz')
   } catch (error) {
     console.error('❌ Error starting transform:', error)
   }
 }
 
-
 onMounted(() => {
-  emitter.on('ws-message', (data:any)=>{
-    if (data.type === 'COUNTER_UPDATE'){
+  emitter.on('ws-message', (data: any) => {
+    if (data.type === 'COUNTER_UPDATE') {
       console.log('update counter')
       count.value = data.payload.count
-      console.log('complete', data.payload.isComplete);
-      
+      console.log('complete', data.payload.isComplete)
+
+      console.log('Countdown complete: ', data.payload.isComplete)
       isCountdownComplete.value = data.payload.isComplete
     }
   })
-  countdown.resume();
+  countdown.resume()
 })
 </script>
 
 <template>
-  <div class="h-screen w-screen grid grid-rows-6 overflow-hidden m-0 p-0 absolute inset-0 bg-gradient-to-b from-blue-50 to-white">
+  <div
+    class="h-screen w-screen grid grid-rows-6 overflow-hidden m-0 p-0 absolute inset-0 bg-gradient-to-b from-blue-50 to-white"
+  >
     <div class="h-full">
       <transition name="slide-bottom">
         <button
@@ -87,7 +89,7 @@ onMounted(() => {
           src="/wesmile-logo.png"
           alt="Robot Photobooth"
           class="mx-auto w-[300px] h-[300px] object-contain"
-        >
+        />
       </template>
     </div>
 
