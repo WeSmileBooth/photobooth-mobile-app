@@ -33,7 +33,7 @@ onMounted(() => {
   console.log('originalImageUrl', originalImageUrl.value)
   if (storedImage) {
     // Create a URL that we can use in our img elements
-    imageUrl.value = URL.createObjectURL(storedImage)
+    // imageUrl.value = URL.createObjectURL(storedImage)
   }
   sendMessage('DISPLAY_UPDATE', { display: 'review' })
 })
@@ -98,28 +98,20 @@ const handleSaveImage = async () => {
   <div class="min-h-screen flex flex-col">
     <!-- Top image - reduced flex-1 to flex-none and added specific height -->
     <div class="flex-none h-[45vh] flex items-center justify-center">
-      <img
-        :src="originalImageUrl"
-        alt="WeSmile Logo Top"
-        class="max-h-full w-auto rounded-2xl shadow-lg object-contain"
-      />
+      <img :src="originalImageUrl" alt="WeSmile Logo Top"
+        class="max-h-full w-auto rounded-2xl shadow-lg object-contain" />
     </div>
 
     <!-- Bottom image - reduced flex-1 to flex-none and added specific height -->
     <div class="flex-none h-[45vh] flex items-center justify-center">
-      <img
-        :src="processedImageUrl"
-        :alt="imageStore.tempImage ? 'Captured Photo' : 'WeSmile Logo Bottom'"
-        class="max-h-full w-auto rounded-2xl shadow-lg object-contain"
-      />
+      <img :src="processedImageUrl" :alt="imageStore.tempImage ? 'Captured Photo' : 'WeSmile Logo Bottom'"
+        class="max-h-full w-auto rounded-2xl shadow-lg object-contain" />
     </div>
 
     <!-- Button container - adjusted to take remaining space -->
     <div class="flex-1 relative">
-      <button
-        @click="handleSaveImage"
-        class="bg-blue-700 text-white text-2xl fixed bottom-0 right-0 h-24 pt-6 px-12 flex items-center rounded-t-full shadow-lg hover:bg-blue-800 transition-colors"
-      >
+      <button @click="handleSaveImage"
+        class="bg-blue-700 text-white text-2xl fixed bottom-0 right-0 h-24 pt-6 px-12 flex items-center rounded-t-full shadow-lg hover:bg-blue-800 transition-colors">
         Save Image
       </button>
     </div>
